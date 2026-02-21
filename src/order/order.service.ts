@@ -25,7 +25,8 @@ async createOrder(
   userEmail: string,
   dto: CheckoutDto,
   paymentScreenshot?: Express.Multer.File,
-  upiTxnId?: string, // ✅ NEW PARAM
+  upiTxnId?: string,
+  upiNote?: string,
 ) {
   const cart = await this.cartModel.findOne({ userId });
 
@@ -45,10 +46,6 @@ async createOrder(
     return sum + price * qty;
   }, 0);
 
-  if (!Number.isFinite(total) || total <= 0) {
-    throw new BadRequestException('Invalid cart total');
-  }
-
   const order = await this.orderModel.create({
     orderId: this.generateOrderId(),
     userId,
@@ -64,11 +61,12 @@ async createOrder(
       dto.paymentMethod === 'ONLINE'
         ? 'verification_pending'
         : 'pending',
-   meta: {
+    meta: {
   paymentScreenshot: paymentScreenshot
     ? `${process.env.APP_URL}/uploads/payments/${paymentScreenshot.filename}`
     : null,
   upiTxnId: upiTxnId || null,
+  upiNote: upiNote || null,
   paymentSubmittedAt: new Date(),
 },
   });
