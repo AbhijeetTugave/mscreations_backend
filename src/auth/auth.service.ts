@@ -84,9 +84,9 @@ export class AuthService {
       sub: user._id,
       email: user.email,
       role: user.role,
-      name: user.name,       // ✅ REQUIRED
-      isUser: user.isUser,   // ✅ REQUIRED
-      mobile: user.mobile    // optional
+      name: user.name,       
+      isUser: user.isUser,   
+      mobile: user.mobile,  
     };
 
     const access_token = await this.jwtService.signAsync(payload);

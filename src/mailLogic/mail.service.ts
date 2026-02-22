@@ -16,29 +16,38 @@ export class MailService {
 
     this.supportEmail = this.configService.get<string>('SUPPORT_EMAIL') || 'support@mscreation.com';
 
-    this.fromEmail = `"MS Creation Store (No-Reply)" <${user}>`;
+    this.fromEmail = `"MS Creations Store (No-Reply)" <${user}>`;
 
     this.transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: { user, pass },
     });
+
+    this.transporter.verify(function (error, success) {
+  if (error) {
+    // console.error("SMTP ERROR:", error);
+  } else {
+    // console.log("SMTP SERVER READY");
+  }
+});
   }
 
   async sendOtp(email: string, otp: string, purpose: OtpPurpose) {
     try {
       const subjectMap = {
-        [OtpPurpose.REGISTER]: 'Verify your MS Creation account',
-        [OtpPurpose.FORGOT_PASSWORD]: 'Reset your MS Creation password',
+        [OtpPurpose.REGISTER]: 'Verify your MS Creations account',
+        [OtpPurpose.FORGOT_PASSWORD]: 'Reset your MS Creations password',
         [OtpPurpose.COD]: 'Confirm your COD order',
       };
 
-      await this.transporter.sendMail({
-        from: this.fromEmail,
-        replyTo: this.supportEmail,
-        to: email,
-        subject: subjectMap[purpose],
-        html: this.otpTemplate(otp, purpose),
-      });
+     const info = await this.transporter.sendMail({
+  from: this.fromEmail,
+  replyTo: this.supportEmail,
+  to: email,
+  subject: `${subjectMap[purpose]} (OTP: ${otp})`,
+  html: this.otpTemplate(otp, purpose),
+});
+
     } catch (error) {
       console.error('MAIL ERROR:', error);
       throw new InternalServerErrorException('Failed to send OTP');
@@ -61,7 +70,7 @@ export class MailService {
         box-shadow:0 8px 24px rgba(0,0,0,.1)">
 
         <h2 style="text-align:center;margin:0;color:#111">
-          MS Creation Store
+          MS Creations Store
         </h2>
 
         <p style="text-align:center;color:#6b7280;font-size:13px">
@@ -90,7 +99,7 @@ export class MailService {
             ${otp}
           </div>
           <div style="margin-top:10px;font-size:12px;color:#6b7280">
-            ⏱ Valid for 5 minutes
+            ⏱ Valid for 30 sec
           </div>
         </div>
 
@@ -112,7 +121,7 @@ export class MailService {
         </p>
 
         <p style="font-size:12px;color:#9ca3af;text-align:center">
-          © ${new Date().getFullYear()} MS Creation Store
+          © ${new Date().getFullYear()} MS Creations Store
         </p>
       </div>
     </div>

@@ -11,7 +11,7 @@ async function bootstrap() {
   const uploadDir = './uploads/payments';
   if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir, { recursive: true });
-    console.log('📁 Created upload directory:', uploadDir);
+    // console.log('📁 Created upload directory:', uploadDir);
   }
 
   const app = await NestFactory.create(AppModule);
