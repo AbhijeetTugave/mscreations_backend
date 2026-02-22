@@ -25,7 +25,7 @@ export class MailService {
 
     this.transporter.verify(function (error, success) {
   if (error) {
-    // console.error("SMTP ERROR:", error);
+    // console.error("SMTP ERROR:", error); 
   } else {
     // console.log("SMTP SERVER READY");
   }
@@ -99,7 +99,7 @@ export class MailService {
             ${otp}
           </div>
           <div style="margin-top:10px;font-size:12px;color:#6b7280">
-            ⏱ Valid for 30 sec
+            ⏱ Valid for 1 minute
           </div>
         </div>
 

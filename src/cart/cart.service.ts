@@ -51,6 +51,7 @@ export class CartService {
       const newItem: CartItem = {
         productId: product._id.toString(),
         name: product.productName,
+        brand: product.brand || '',
         price: product.sellingPrice,
         image: product.images?.[0] || '',
         quantity: qty,

@@ -36,7 +36,6 @@ export class AuthController {
       dto.email,
       dto.otp,
       dto.purpose,
-      false
     );
   }
 

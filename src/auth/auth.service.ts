@@ -115,7 +115,7 @@ export class AuthService {
     otpStore.set(key, {
       otpHash,
       attempts: 0,
-      expiresAt: Date.now() + 5 * 60 * 1000, // 5 min
+      expiresAt: Date.now() + 1 * 60 * 1000, // 1 minute
     });
 
     await this.mailService.sendOtp(email, otp, purpose);
@@ -124,44 +124,42 @@ export class AuthService {
   }
 
 
-  async verifyOtp(
-    email: string,
-    otp: string,
-    purpose: OtpPurpose,
-    consumeOtp = false // 🔥 NEW FLAG
-  ) {
-    const key = `${purpose}:${email}`;
-    const record = otpStore.get(key);
+ async verifyOtp(
+  email: string,
+  otp: string,
+  purpose: OtpPurpose,
+) {
+  const key = `${purpose}:${email}`;
+  const record = otpStore.get(key);
 
-    if (!record) {
-      throw new UnauthorizedException('OTP expired or not found');
-    }
-
-    if (Date.now() > record.expiresAt) {
-      otpStore.delete(key);
-      throw new UnauthorizedException('OTP expired');
-    }
-
-    if (record.attempts >= 3) {
-      otpStore.delete(key);
-      throw new UnauthorizedException('Too many attempts');
-    }
-
-    const isValid = await bcrypt.compare(otp, record.otpHash);
-
-    if (!isValid) {
-      record.attempts += 1;
-      otpStore.set(key, record);
-      throw new UnauthorizedException('Invalid OTP');
-    }
-
-    // ✅ DELETE ONLY WHEN CONSUMED
-    if (consumeOtp) {
-      otpStore.delete(key);
-    }
-
-    return { message: 'OTP verified successfully' };
+  if (!record) {
+    throw new UnauthorizedException('OTP_EXPIRED');
   }
+
+  if (Date.now() > record.expiresAt) {
+    otpStore.delete(key);
+    throw new UnauthorizedException('OTP_EXPIRED');
+  }
+
+  if (record.attempts >= 3) {
+    otpStore.delete(key);
+    throw new UnauthorizedException('TOO_MANY_ATTEMPTS');
+  }
+
+  const isValid = await bcrypt.compare(otp, record.otpHash);
+
+  if (!isValid) {
+    record.attempts += 1;
+    otpStore.set(key, record);
+    throw new UnauthorizedException('INVALID_OTP');
+  }
+
+  // mark verified (do not delete yet)
+  record.expiresAt = Date.now() + 5 * 60 * 1000; // allow 5 min to reset password
+  otpStore.set(key, record);
+
+  return { message: 'OTP_VERIFIED' };
+}
 
 
   async sendForgotOtp(email: string) {
@@ -175,26 +173,33 @@ export class AuthService {
     return { message: 'OTP sent to registered email' };
   }
 
-  async resetPassword(dto: {
-    email: string;
-    otp: string;
-    newPassword: string;
-  }) {
-    const { email, otp, newPassword } = dto;
+async resetPassword(dto: {
+  email: string;
+  otp: string;
+  newPassword: string;
+}) {
+  const { email, otp, newPassword } = dto;
 
-    // 🔥 FINAL CONSUMPTION
-    await this.verifyOtp(
-      email,
-      otp,
-      OtpPurpose.FORGOT_PASSWORD,
-      true // ✅ consume OTP here
-    );
+  const key = `${OtpPurpose.FORGOT_PASSWORD}:${email}`;
+  const record = otpStore.get(key);
 
-    const hashed = await bcrypt.hash(newPassword, 10);
-    await this.usersService.updatePassword(email, hashed);
-
-    return { message: 'Password updated successfully' };
+  if (!record) {
+    throw new UnauthorizedException('OTP_EXPIRED');
   }
+
+  const isValid = await bcrypt.compare(otp, record.otpHash);
+  if (!isValid) {
+    throw new UnauthorizedException('INVALID_OTP');
+  }
+
+  // final consume
+  otpStore.delete(key);
+
+  const hashed = await bcrypt.hash(newPassword, 10);
+  await this.usersService.updatePassword(email, hashed);
+
+  return { message: 'Password updated successfully' };
+}
 
 
 }

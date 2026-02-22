@@ -21,25 +21,25 @@ export const CATEGORY_TREE = {
       'Sherwanis',
       'Nehru Jackets'
     ],
-    Footwear: [
-      'Casual Shoes',
-      'Sports Shoes',
-      'Formal Shoes',
-      'Sandals',
-      'Slippers'
-    ]
+    // Footwear: [
+    //   'Casual Shoes',
+    //   'Sports Shoes',
+    //   'Formal Shoes',
+    //   'Sandals',
+    //   'Slippers'
+    // ]
   },
 
   women: {
     Westernwear: ['Tops', 'Dresses', 'T-Shirts', 'Jeans', 'Skirts'],
     Ethnicwear: ['Kurtas', 'Sarees', 'Lehenga', 'Salwar Suits'],
-    Footwear: ['Flats', 'Heels', 'Casual Shoes'],
+    // Footwear: ['Flats', 'Heels', 'Casual Shoes'],
     Beauty: ['Makeup', 'Skincare', 'Haircare']
   },
 
   kids: {
     Boys: ['T-Shirts', 'Shirts', 'Shorts', 'Jeans', 'Ethnic Wear'],
     Girls: ['Dresses', 'Tops', 'Leggings', 'Ethnic Wear'],
-    Footwear: ['Casual Shoes', 'Sports Shoes', 'Sandals']
+    // Footwear: ['Casual Shoes', 'Sports Shoes', 'Sandals']
   }
 };

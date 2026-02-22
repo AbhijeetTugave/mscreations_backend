@@ -4,6 +4,7 @@ import { Document } from 'mongoose';
 export interface CartItem {
   productId: string;
   name: string;
+  brand:string;
   price: number;
   image: string;
   size?: string;
@@ -21,6 +22,7 @@ export class Cart extends Document {
       {
         productId: String,
         name: String,
+        brand: String,
         price: Number,
         image: String,
         size: String,
