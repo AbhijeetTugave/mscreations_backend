@@ -11,16 +11,15 @@ export class UsersService {
   constructor(
     @InjectModel(User.name)
     private userModel: Model<UserDocument>,
-  ) { }
+  ) {}
 
+  // ================= CREATE USER =================
   async create(createUserDto: CreateUserDto): Promise<UserDocument> {
-
-    // 🔴 CHECK EMAIL OR MOBILE
     const existingUser = await this.userModel.findOne({
       $or: [
         { email: createUserDto.email },
-        { mobile: createUserDto.mobile }
-      ]
+        { mobile: createUserDto.mobile },
+      ],
     });
 
     if (existingUser) {
@@ -32,7 +31,6 @@ export class UsersService {
       }
     }
 
-    // 🔐 HASH PASSWORD
     const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
 
     const createdUser = new this.userModel({
@@ -47,6 +45,7 @@ export class UsersService {
     return createdUser.save();
   }
 
+  // ================= FIND METHODS =================
   async findByEmail(email: string) {
     return this.userModel.findOne({ email }).exec();
   }
@@ -56,29 +55,50 @@ export class UsersService {
   }
 
   async findById(id: string) {
-    return this.userModel.findById(id).exec();
+    return this.userModel
+      .findById(id)
+      .select('-password') // 🔥 hide password
+      .exec();
   }
 
   async findAll(): Promise<User[]> {
-    return this.userModel.find().exec();
+    return this.userModel.find().select('-password').exec();
   }
 
+  // ================= UPDATE PASSWORD =================
   async updatePassword(email: string, password: string) {
     return this.userModel.updateOne(
       { email },
-      { $set: { password } }
+      { $set: { password } },
     );
   }
 
-  async updateProfile(
-    userId: string,
-    data: { name?: string; mobile?: string },
-  ) {
-    return this.userModel.findByIdAndUpdate(
-      userId,
-      data,
-      { new: true },
-    );
-  }
+  // ================= UPDATE PROFILE =================
+  async updateProfile(userId: string, data: any) {
+    const updateData: any = {};
 
+    // Basic fields
+    if (data.name) updateData.name = data.name;
+    if (data.mobile) updateData.mobile = data.mobile;
+
+    // Address handling (create OR update)
+    if (data.address) {
+      updateData.address = {
+        addressLine1: data.address.addressLine1 || '',
+        addressLine2: data.address.addressLine2 || '',
+        city: data.address.city || '',
+        state: data.address.state || '',
+        postalCode: data.address.postalCode || '',
+        country: data.address.country || 'India',
+      };
+    }
+
+    return this.userModel
+      .findByIdAndUpdate(
+        userId,
+        { $set: updateData },
+        { new: true },
+      )
+      .select('-password');
+  }
 }

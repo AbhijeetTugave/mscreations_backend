@@ -32,8 +32,8 @@ export class Product {
   @Prop()
   stock: number;
 
-  @Prop()
-  lowStock: number;
+  // @Prop()
+  // lowStock: number;
 
   @Prop()
   status: string;

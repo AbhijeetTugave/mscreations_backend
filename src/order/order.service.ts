@@ -5,10 +5,12 @@ import { Order, OrderDocument } from './schema/order.schema';
 import { Cart } from '../cart/schema/cart.schema';
 import { CheckoutDto } from './dto/checkout.dto';
 import { AdminGateway } from '../admin/admin.gateway';
+import { Product } from 'src/product/schema/product.schema';
 
 @Injectable()
 export class OrderService {
   constructor(
+    @InjectModel(Product.name) private productModel: Model<Product>,
     @InjectModel(Order.name) private readonly orderModel: Model<OrderDocument>,
     @InjectModel(Cart.name) private readonly cartModel: Model<Cart>,
     private readonly adminGateway: AdminGateway,
@@ -28,13 +30,39 @@ async createOrder(
   upiTxnId?: string,
   upiNote?: string,
 ) {
+
+  // 1️⃣ Get cart from DB
   const cart = await this.cartModel.findOne({ userId });
 
   if (!cart || !cart.items.length) {
     throw new BadRequestException('Cart is empty');
   }
 
+  // 2️⃣ CHECK STOCK + REDUCE STOCK (Atomic Safe)
+  for (const item of cart.items) {
+
+    const product = await this.productModel.findById(item.productId);
+
+    if (!product) {
+      throw new BadRequestException(`Product not found`);
+    }
+
+    if (product.stock < item.quantity) {
+      throw new BadRequestException(
+        `Not enough stock for ${product.productName}`
+      );
+    }
+
+    // 🔥 Atomic update (BEST WAY)
+    await this.productModel.findByIdAndUpdate(
+      item.productId,
+      { $inc: { stock: -item.quantity } }
+    );
+  }
+
+  // 3️⃣ Calculate total
   const total = cart.items.reduce((sum, item: any) => {
+
     const price =
       item.sellingPrice ??
       item.price ??
@@ -44,8 +72,10 @@ async createOrder(
     const qty = item.quantity ?? 1;
 
     return sum + price * qty;
+
   }, 0);
 
+  // 4️⃣ Create Order
   const order = await this.orderModel.create({
     orderId: this.generateOrderId(),
     userId,
@@ -62,15 +92,16 @@ async createOrder(
         ? 'verification_pending'
         : 'pending',
     meta: {
-  paymentScreenshot: paymentScreenshot
-    ? `${process.env.APP_URL}/uploads/payments/${paymentScreenshot.filename}`
-    : null,
-  upiTxnId: upiTxnId || null,
-  upiNote: upiNote || null,
-  paymentSubmittedAt: new Date(),
-},
+      paymentScreenshot: paymentScreenshot
+        ? `${process.env.APP_URL}/uploads/payments/${paymentScreenshot.filename}`
+        : null,
+      upiTxnId: upiTxnId || null,
+      upiNote: upiNote || null,
+      paymentSubmittedAt: new Date(),
+    },
   });
 
+  // 5️⃣ Clear cart after order success
   await this.cartModel.updateOne(
     { userId },
     { $set: { items: [] } },
