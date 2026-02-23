@@ -11,14 +11,14 @@ export class SeederService {
   ) { }
 
   async seedAdmin() {
-    const admin = await this.userModel.findOne({ email: 'mscreation@gmail.com' });
+    const admin = await this.userModel.findOne({ email: 'mscreations3010@gmail.com' });
     if (admin) return;
 
-    const hashed = await bcrypt.hash('Mscreation@123', 10);
+    const hashed = await bcrypt.hash('Creations@2025', 10);
 
     await this.userModel.create({
       name: 'Admin',
-      email: 'mscreation@gmail.com',
+      email: 'mscreations3010@gmail.com',
       password: hashed,
       role: 'admin',
       isUser: false,
