@@ -28,6 +28,7 @@ export class Cart extends Document {
         size: String,
         color: String,
         quantity: Number,
+        
       },
     ],
     default: [],
