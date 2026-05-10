@@ -19,9 +19,19 @@ export class MailService {
 
     this.fromEmail = `"MS Creations Store (No-Reply)" <${user}>`;
 
+    // this.transporter = nodemailer.createTransport({
+    //   service: "gmail",
+    //   auth: { user, pass },
+    // });
     this.transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: { user, pass },
+      host: "smtp.gmail.com",
+      port: 465,
+      secure: true,
+      auth: {
+        user,
+        pass,
+      },
+      connectionTimeout: 10000,
     });
 
     this.transporter.verify(function (error, success) {
