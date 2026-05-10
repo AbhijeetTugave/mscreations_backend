@@ -1,18 +1,21 @@
-import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
-import * as bcrypt from 'bcrypt';
-import { JwtService } from '@nestjs/jwt';
-import { UsersService } from '../users/users.service';
-import { LoginDto } from './dto/login.dto';
-import { CreateUserDto } from '../users/dto/create-user.dto';
-import { ADMIN_USER } from './admin.constants';
-import { MailService } from 'src/mailLogic/mail.service';
-import { randomInt } from 'crypto';
-import { OtpPurpose } from './otp-purpose.enum';
+import {
+  ConflictException,
+  Injectable,
+  UnauthorizedException,
+} from "@nestjs/common";
+import * as bcrypt from "bcrypt";
+import { JwtService } from "@nestjs/jwt";
+import { UsersService } from "../users/users.service";
+import { LoginDto } from "./dto/login.dto";
+import { CreateUserDto } from "../users/dto/create-user.dto";
+import { ADMIN_USER } from "./admin.constants";
+import { MailService } from "src/mailLogic/mail.service";
+import { randomInt } from "crypto";
+import { OtpPurpose } from "./otp-purpose.enum";
 const otpStore = new Map<
   string,
   { otpHash: string; attempts: number; expiresAt: number }
 >();
-
 
 @Injectable()
 export class AuthService {
@@ -20,27 +23,26 @@ export class AuthService {
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
     private readonly mailService: MailService,
-  ) { }
+  ) {}
 
   // REGISTER NORMAL USER
   async register(createUserDto: CreateUserDto) {
-
-    const existingUser = await this.usersService.findByEmail(createUserDto.email);
+    const existingUser = await this.usersService.findByEmail(
+      createUserDto.email,
+    );
     if (existingUser) {
-      throw new ConflictException('Email already registered');
+      throw new ConflictException("Email already registered");
     }
 
     const user = await this.usersService.create({
       ...createUserDto,
-      role: 'user',
+      role: "user",
       isUser: true,
     });
 
     // ✅ Direct login after OTP already verified
     return this.buildToken(user);
   }
-
-
 
   // LOGIN (ADMIN + USER)
   async login(loginDto: LoginDto) {
@@ -49,11 +51,11 @@ export class AuthService {
     /* ================= ADMIN LOGIN (NO DB) ================= */
     if (email === ADMIN_USER.email) {
       if (password !== ADMIN_USER.password) {
-        throw new UnauthorizedException('Invalid credentials');
+        throw new UnauthorizedException("Invalid credentials");
       }
 
       return this.buildToken({
-        _id: 'admin-fixed-id',
+        _id: "admin-fixed-id",
         email: ADMIN_USER.email,
         role: ADMIN_USER.role,
         name: ADMIN_USER.name,
@@ -61,18 +63,17 @@ export class AuthService {
         isUser: false,
         isActive: true,
       });
-
     }
 
     /* ================= NORMAL USER LOGIN ================= */
     const user = await this.usersService.findByEmail(email);
     if (!user) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException("Invalid credentials");
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException("Invalid credentials");
     }
 
     return this.buildToken(user);
@@ -84,9 +85,9 @@ export class AuthService {
       sub: user._id,
       email: user.email,
       role: user.role,
-      name: user.name,       
-      isUser: user.isUser,   
-      mobile: user.mobile,  
+      name: user.name,
+      isUser: user.isUser,
+      mobile: user.mobile,
     };
 
     const access_token = await this.jwtService.signAsync(payload);
@@ -117,89 +118,85 @@ export class AuthService {
       attempts: 0,
       expiresAt: Date.now() + 1 * 60 * 1000, // 1 minute
     });
+    try {
+      await this.mailService.sendOtp(email, otp, purpose);
 
-    await this.mailService.sendOtp(email, otp, purpose);
-
-    return { message: 'OTP sent successfully' };
+      return { message: "OTP sent successfully" };
+    } catch (err) {
+      console.log(err);
+      throw err;
+    }
   }
 
+  async verifyOtp(email: string, otp: string, purpose: OtpPurpose) {
+    const key = `${purpose}:${email}`;
+    const record = otpStore.get(key);
 
- async verifyOtp(
-  email: string,
-  otp: string,
-  purpose: OtpPurpose,
-) {
-  const key = `${purpose}:${email}`;
-  const record = otpStore.get(key);
+    if (!record) {
+      throw new UnauthorizedException("OTP_EXPIRED");
+    }
 
-  if (!record) {
-    throw new UnauthorizedException('OTP_EXPIRED');
-  }
+    if (Date.now() > record.expiresAt) {
+      otpStore.delete(key);
+      throw new UnauthorizedException("OTP_EXPIRED");
+    }
 
-  if (Date.now() > record.expiresAt) {
-    otpStore.delete(key);
-    throw new UnauthorizedException('OTP_EXPIRED');
-  }
+    if (record.attempts >= 3) {
+      otpStore.delete(key);
+      throw new UnauthorizedException("TOO_MANY_ATTEMPTS");
+    }
 
-  if (record.attempts >= 3) {
-    otpStore.delete(key);
-    throw new UnauthorizedException('TOO_MANY_ATTEMPTS');
-  }
+    const isValid = await bcrypt.compare(otp, record.otpHash);
 
-  const isValid = await bcrypt.compare(otp, record.otpHash);
+    if (!isValid) {
+      record.attempts += 1;
+      otpStore.set(key, record);
+      throw new UnauthorizedException("INVALID_OTP");
+    }
 
-  if (!isValid) {
-    record.attempts += 1;
+    // mark verified (do not delete yet)
+    record.expiresAt = Date.now() + 5 * 60 * 1000; // allow 5 min to reset password
     otpStore.set(key, record);
-    throw new UnauthorizedException('INVALID_OTP');
+
+    return { message: "OTP_VERIFIED" };
   }
-
-  // mark verified (do not delete yet)
-  record.expiresAt = Date.now() + 5 * 60 * 1000; // allow 5 min to reset password
-  otpStore.set(key, record);
-
-  return { message: 'OTP_VERIFIED' };
-}
-
 
   async sendForgotOtp(email: string) {
     const user = await this.usersService.findByEmail(email);
 
     if (!user) {
-      throw new UnauthorizedException('Email not registered');
+      throw new UnauthorizedException("Email not registered");
     }
 
     await this.sendOtp(email, OtpPurpose.FORGOT_PASSWORD);
-    return { message: 'OTP sent to registered email' };
+    return { message: "OTP sent to registered email" };
   }
 
-async resetPassword(dto: {
-  email: string;
-  otp: string;
-  newPassword: string;
-}) {
-  const { email, otp, newPassword } = dto;
+  async resetPassword(dto: {
+    email: string;
+    otp: string;
+    newPassword: string;
+  }) {
+    const { email, otp, newPassword } = dto;
 
-  const key = `${OtpPurpose.FORGOT_PASSWORD}:${email}`;
-  const record = otpStore.get(key);
+    const key = `${OtpPurpose.FORGOT_PASSWORD}:${email}`;
+    const record = otpStore.get(key);
 
-  if (!record) {
-    throw new UnauthorizedException('OTP_EXPIRED');
+    if (!record) {
+      throw new UnauthorizedException("OTP_EXPIRED");
+    }
+
+    const isValid = await bcrypt.compare(otp, record.otpHash);
+    if (!isValid) {
+      throw new UnauthorizedException("INVALID_OTP");
+    }
+
+    // final consume
+    otpStore.delete(key);
+
+    const hashed = await bcrypt.hash(newPassword, 10);
+    await this.usersService.updatePassword(email, hashed);
+
+    return { message: "Password updated successfully" };
   }
-
-  const isValid = await bcrypt.compare(otp, record.otpHash);
-  if (!isValid) {
-    throw new UnauthorizedException('INVALID_OTP');
-  }
-
-  // final consume
-  otpStore.delete(key);
-
-  const hashed = await bcrypt.hash(newPassword, 10);
-  await this.usersService.updatePassword(email, hashed);
-
-  return { message: 'Password updated successfully' };
-}
-
-
 }

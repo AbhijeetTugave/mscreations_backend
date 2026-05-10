@@ -64,7 +64,7 @@ export class MailService {
     const text =
       purposeTextMap[purpose] ?? 'to complete your verification';
     return `
-    <div style="background:#f4f6f8;padding:30px;font-family:"Poppins", sans-serif">
+    <div style="background:#f4f6f8;padding:30px;font-family:Poppins, sans-serif">
       <div style="max-width:520px;margin:auto;background:#fff;
         padding:30px;border-radius:12px;
         box-shadow:0 8px 24px rgba(0,0,0,.1)">
