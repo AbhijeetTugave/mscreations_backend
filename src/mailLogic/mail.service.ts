@@ -25,13 +25,16 @@ export class MailService {
     // });
     this.transporter = nodemailer.createTransport({
       host: "smtp.gmail.com",
-      port: 465,
-      secure: true,
+      port: 587,
+      secure: false,
       auth: {
         user,
         pass,
       },
-      connectionTimeout: 10000,
+      tls: {
+        rejectUnauthorized: false,
+      },
+      connectionTimeout: 20000,
     });
 
     this.transporter.verify(function (error, success) {
