@@ -18,6 +18,9 @@ export class MailService {
   }
 
   async sendOtp(email: string, otp: string, purpose: OtpPurpose) {
+    console.log("EMAIL:", email);
+    console.log("OTP VALUE:", otp);
+    console.log("PURPOSE:", purpose);
     const subjectMap = {
       [OtpPurpose.REGISTER]: "Verify your MS Creations account",
 
