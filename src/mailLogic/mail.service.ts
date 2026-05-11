@@ -1,67 +1,39 @@
 import { Injectable, InternalServerErrorException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import * as nodemailer from "nodemailer";
+import { BrevoClient } from "@getbrevo/brevo";
 import { OtpPurpose } from "src/auth/otp-purpose.enum";
 
 @Injectable()
 export class MailService {
-  private transporter;
-  private fromEmail: string;
+  private client: BrevoClient;
   private supportEmail: string;
 
   constructor(private configService: ConfigService) {
-    const user = this.configService.get<string>("EMAIL_USER");
-    const pass = this.configService.get<string>("EMAIL_PASS");
+    this.client = new BrevoClient({
+      apiKey: () => this.configService.get<string>("BREVO_API_KEY") ?? "",
+    });
 
     this.supportEmail =
       this.configService.get<string>("SUPPORT_EMAIL") ||
       "support@mscreation.com";
-
-    // this.fromEmail = `"MS Creations Store (No-Reply)" <${user}>`;
-    this.fromEmail = `"MS Creations Store (No-Reply)" <${this.supportEmail}>`;
-
-    // this.transporter = nodemailer.createTransport({
-    //   service: "gmail",
-    //   auth: { user, pass },
-    // });
-    this.transporter = nodemailer.createTransport({
-      host: "smtp-relay.brevo.com",
-      port: 587,
-      secure: false,
-      auth: {
-        user,
-        pass,
-      },
-      tls: {
-        rejectUnauthorized: false,
-      },
-      connectionTimeout: 30000,
-    });
-
-    this.transporter.verify(function (error, success) {
-      if (error) {
-        console.error("SMTP ERROR:", error);
-      } else {
-        console.log("SMTP SERVER READY");
-      }
-    });
   }
 
   async sendOtp(email: string, otp: string, purpose: OtpPurpose) {
-    try {
-      const subjectMap = {
-        [OtpPurpose.REGISTER]: "Verify your MS Creations account",
-        [OtpPurpose.FORGOT_PASSWORD]: "Reset your MS Creations password",
-        [OtpPurpose.COD]: "Confirm your COD order",
-      };
+    const subjectMap = {
+      [OtpPurpose.REGISTER]: "Verify your MS Creations account",
+      [OtpPurpose.FORGOT_PASSWORD]: "Reset your MS Creations password",
+      [OtpPurpose.COD]: "Confirm your COD order",
+    };
 
-      const info = await this.transporter.sendMail({
-        from: this.fromEmail,
-        replyTo: this.supportEmail,
-        to: email,
+    try {
+      await this.client.transactionalEmails.sendTransacEmail({
         subject: `${subjectMap[purpose]} (OTP: ${otp})`,
-        html: this.otpTemplate(otp, purpose),
+        htmlContent: this.otpTemplate(otp, purpose),
+        sender: { name: "MS Creations Store", email: this.supportEmail },
+        to: [{ email }],
+        replyTo: { email: this.supportEmail },
       });
+      console.log("✅ OTP email sent successfully");
     } catch (error) {
       console.error("MAIL ERROR:", error);
       throw new InternalServerErrorException("Failed to send OTP");
