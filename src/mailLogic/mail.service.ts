@@ -1,41 +1,53 @@
 import { Injectable, InternalServerErrorException } from "@nestjs/common";
+
 import { ConfigService } from "@nestjs/config";
-import { BrevoClient } from "@getbrevo/brevo";
+import * as nodemailer from "nodemailer";
 import { OtpPurpose } from "src/auth/otp-purpose.enum";
 
 @Injectable()
 export class MailService {
-  private client: BrevoClient;
+  private transporter;
   private supportEmail: string;
 
   constructor(private configService: ConfigService) {
-    this.client = new BrevoClient({
-      apiKey: () => this.configService.get<string>("BREVO_API_KEY") ?? "",
-    });
-
     this.supportEmail =
       this.configService.get<string>("SUPPORT_EMAIL") ||
-      "support@mscreation.com";
+      "mscreation3010@gmail.com";
+
+    this.transporter = nodemailer.createTransport({
+      service: "gmail",
+
+      auth: {
+        user: this.configService.get<string>("EMAIL_USER"),
+        pass: this.configService.get<string>("EMAIL_PASS"),
+      },
+    });
   }
 
   async sendOtp(email: string, otp: string, purpose: OtpPurpose) {
     const subjectMap = {
       [OtpPurpose.REGISTER]: "Verify your MS Creations account",
+
       [OtpPurpose.FORGOT_PASSWORD]: "Reset your MS Creations password",
+
       [OtpPurpose.COD]: "Confirm your COD order",
     };
 
     try {
-      await this.client.transactionalEmails.sendTransacEmail({
+      await this.transporter.sendMail({
+        from: `"MS Creations Store" <${this.supportEmail}>`,
+
+        to: email,
+
         subject: `${subjectMap[purpose]} (OTP: ${otp})`,
-        htmlContent: this.otpTemplate(otp, purpose),
-        sender: { name: "MS Creations Store", email: this.supportEmail },
-        to: [{ email }],
-        replyTo: { email: this.supportEmail },
+
+        html: this.otpTemplate(otp, purpose),
       });
+
       console.log("✅ OTP email sent successfully");
     } catch (error) {
       console.error("MAIL ERROR:", error);
+
       throw new InternalServerErrorException("Failed to send OTP");
     }
   }
@@ -43,19 +55,23 @@ export class MailService {
   private otpTemplate(otp: string, purpose: OtpPurpose): string {
     const purposeTextMap: Record<OtpPurpose, string> = {
       [OtpPurpose.REGISTER]: "to verify your account",
+
       [OtpPurpose.FORGOT_PASSWORD]: "to reset your password",
+
       [OtpPurpose.COD]: "to confirm your Cash on Delivery order",
     };
 
     const titleMap: Record<OtpPurpose, string> = {
       [OtpPurpose.REGISTER]: "Account Verification",
+
       [OtpPurpose.FORGOT_PASSWORD]: "Password Reset Request",
+
       [OtpPurpose.COD]: "COD Order Confirmation",
     };
 
-    const text = purposeTextMap[purpose] ?? "to complete your verification";
+    const text = purposeTextMap[purpose] || "to complete your verification";
 
-    const title = titleMap[purpose] ?? "OTP Verification";
+    const title = titleMap[purpose] || "OTP Verification";
 
     return `
   <div style="
@@ -74,7 +90,6 @@ export class MailService {
       box-shadow:0 10px 30px rgba(0,0,0,0.08);
     ">
 
-      <!-- TOP HEADER -->
       <div style="
         background:linear-gradient(135deg,#7f1d1d,#991b1b);
         padding:35px 30px;
@@ -101,7 +116,6 @@ export class MailService {
 
       </div>
 
-      <!-- BODY -->
       <div style="padding:40px 35px;">
 
         <div style="
@@ -146,7 +160,6 @@ export class MailService {
           This OTP is valid for only <strong>1 minute</strong>.
         </p>
 
-        <!-- OTP BOX -->
         <div style="
           margin:38px 0;
           text-align:center;
@@ -181,7 +194,6 @@ export class MailService {
 
         </div>
 
-        <!-- WARNING -->
         <div style="
           background:#fff7ed;
           border:1px solid #fed7aa;
@@ -195,13 +207,12 @@ export class MailService {
             font-size:14px;
             line-height:1.7;
           ">
-            🔒 Never share this OTP with anyone. 
+            🔒 Never share this OTP with anyone.
             MS Creations will never ask for your OTP via call, message, or email.
           </div>
 
         </div>
 
-        <!-- SUPPORT -->
         <div style="
           margin-top:32px;
           padding-top:24px;
@@ -223,7 +234,7 @@ export class MailService {
             font-size:14px;
           ">
             Need help?
-            <a 
+            <a
               href="mailto:${this.supportEmail}"
               style="
                 color:#991b1b;
@@ -239,7 +250,6 @@ export class MailService {
 
       </div>
 
-      <!-- FOOTER -->
       <div style="
         background:#fafafa;
         padding:22px;
@@ -271,6 +281,6 @@ export class MailService {
     </div>
 
   </div>
-  `;
+    `;
   }
 }
