@@ -22,10 +22,9 @@ export class MailService {
 
     try {
       await this.resend.emails.send({
-        from: "MS Creations <mscreation3010@gmail.com>",
+        from: "MS Creations <onboarding@resend.dev>",
         to: email,
         subject: `${subjectMap[purpose]} | OTP ${otp}`,
-
         html: this.otpTemplate(otp, purpose),
       });
 
