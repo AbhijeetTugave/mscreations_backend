@@ -1,12 +1,12 @@
 import { Injectable, InternalServerErrorException } from "@nestjs/common";
-
 import { ConfigService } from "@nestjs/config";
-import * as nodemailer from "nodemailer";
+import { Resend } from "resend";
 import { OtpPurpose } from "src/auth/otp-purpose.enum";
 
 @Injectable()
 export class MailService {
-  private transporter;
+  private resend: Resend;
+
   private supportEmail: string;
 
   constructor(private configService: ConfigService) {
@@ -14,14 +14,7 @@ export class MailService {
       this.configService.get<string>("SUPPORT_EMAIL") ||
       "mscreation3010@gmail.com";
 
-    this.transporter = nodemailer.createTransport({
-      service: "gmail",
-
-      auth: {
-        user: this.configService.get<string>("EMAIL_USER"),
-        pass: this.configService.get<string>("EMAIL_PASS"),
-      },
-    });
+    this.resend = new Resend(this.configService.get<string>("EMAIL_PASS"));
   }
 
   async sendOtp(email: string, otp: string, purpose: OtpPurpose) {
@@ -34,8 +27,8 @@ export class MailService {
     };
 
     try {
-      await this.transporter.sendMail({
-        from: `"MS Creations Store" <${this.supportEmail}>`,
+      await this.resend.emails.send({
+        from: "onboarding@resend.dev",
 
         to: email,
 
@@ -46,11 +39,7 @@ export class MailService {
 
       console.log("✅ OTP email sent successfully");
     } catch (error: any) {
-      console.log("MAIL ERROR FULL:", JSON.stringify(error, null, 2));
-
-      console.log("MAIL RESPONSE:", error?.response);
-
-      console.log("MAIL MESSAGE:", error?.message);
+      console.log("RESEND ERROR:", JSON.stringify(error, null, 2));
 
       throw new InternalServerErrorException(
         error?.message || "Failed to send OTP",
@@ -219,41 +208,6 @@ export class MailService {
 
         </div>
 
-        <div style="
-          margin-top:32px;
-          padding-top:24px;
-          border-top:1px solid #e5e7eb;
-        ">
-
-          <p style="
-            margin:0;
-            color:#6b7280;
-            font-size:14px;
-            line-height:1.8;
-          ">
-            If you did not request this verification, you can safely ignore this email.
-          </p>
-
-          <p style="
-            margin-top:14px;
-            color:#6b7280;
-            font-size:14px;
-          ">
-            Need help?
-            <a
-              href="mailto:${this.supportEmail}"
-              style="
-                color:#991b1b;
-                text-decoration:none;
-                font-weight:600;
-              "
-            >
-              Contact Support
-            </a>
-          </p>
-
-        </div>
-
       </div>
 
       <div style="
@@ -269,17 +223,8 @@ export class MailService {
           font-size:12px;
           line-height:1.8;
         ">
-          This is an automated email from MS Creations Store.
-          Please do not reply directly to this message.
-        </p>
-
-        <p style="
-          margin-top:10px;
-          color:#9ca3af;
-          font-size:12px;
-        ">
-          © ${new Date().getFullYear()} MS Creations Store.
-          All rights reserved.
+          © ${new Date().getFullYear()}
+          MS Creations Store.
         </p>
 
       </div>
