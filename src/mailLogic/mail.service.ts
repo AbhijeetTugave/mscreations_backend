@@ -45,10 +45,16 @@ export class MailService {
       });
 
       console.log("✅ OTP email sent successfully");
-    } catch (error) {
-      console.error("MAIL ERROR:", error);
+    } catch (error: any) {
+      console.log("MAIL ERROR FULL:", JSON.stringify(error, null, 2));
 
-      throw new InternalServerErrorException("Failed to send OTP");
+      console.log("MAIL RESPONSE:", error?.response);
+
+      console.log("MAIL MESSAGE:", error?.message);
+
+      throw new InternalServerErrorException(
+        error?.message || "Failed to send OTP",
+      );
     }
   }
 
