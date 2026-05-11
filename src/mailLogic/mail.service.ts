@@ -17,7 +17,8 @@ export class MailService {
       this.configService.get<string>("SUPPORT_EMAIL") ||
       "support@mscreation.com";
 
-    this.fromEmail = `"MS Creations Store (No-Reply)" <${user}>`;
+    // this.fromEmail = `"MS Creations Store (No-Reply)" <${user}>`;
+    this.fromEmail = `"MS Creations Store (No-Reply)" <${this.supportEmail}>`;
 
     // this.transporter = nodemailer.createTransport({
     //   service: "gmail",
@@ -31,6 +32,10 @@ export class MailService {
         user,
         pass,
       },
+      tls: {
+        rejectUnauthorized: false,
+      },
+      connectionTimeout: 30000,
     });
 
     this.transporter.verify(function (error, success) {
