@@ -24,17 +24,13 @@ export class MailService {
     //   auth: { user, pass },
     // });
     this.transporter = nodemailer.createTransport({
-      host: "smtp.gmail.com",
+      host: "smtp-relay.brevo.com",
       port: 587,
       secure: false,
       auth: {
         user,
         pass,
       },
-      tls: {
-        rejectUnauthorized: false,
-      },
-      connectionTimeout: 20000,
     });
 
     this.transporter.verify(function (error, success) {
